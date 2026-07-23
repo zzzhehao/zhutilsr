@@ -4,7 +4,7 @@
 \name{zhutilsr-package}
 \alias{zhutilsr}
 \alias{zhutilsr-package}
-\title{zhutilsr: Zhehao's Utilities}
+\title{zhutilsr: Zhehao's R Utilities}
 \description{
 Zhehao's Utilities
 }
