@@ -59,45 +59,70 @@
 }
 
 #' Check whether the required dependency is installed
-#' @param pkg Package name.
-#' @param install.call A suggested call for installing the package if missing. The call must be passed quoted by [quote()] or [rlang::expr()].
+#' @param pkg Character vector. Package names.
+#' @param install.call A suggested function (or list of functions) for installing the package if missing. Default to \code{NULL}, no installation will be suggested.
+#' @param 
+#' @return A logical vector of the same length as \code{pkg} indicating if packages are installed.
 #' @export
 .dependency_check <- function(
     pkg,
     install.call = NULL
 ) {
-    if (!requireNamespace(pkg, quietly = TRUE)) {
-        return(TRUE)
+    icall_expr <- rlang::enexpr(install.call)
+    if (is.null(icall_expr)) {
+        icall_list <- replicate(length(pkg), NULL, simplify = FALSE)
+    } else if (rlang::is_call(icall_expr, "list")) {
+        icall_list <- rlang::call_args(icall_expr)
     } else {
-        if (!is.null(install.call)) {
-            if (!interactive()) {
-                return(FALSE)
-            }
-            call_text <- rlang::expr_text(install.call)
+        icall_list <- replicate(length(pkg), icall_expr, simplify = FALSE)
+    }
+    
+    check_single <- function(p, icall) {
+        if (requireNamespace(p, quietly = TRUE)) {
+            return(TRUE)
+        } 
+        
+        if (is.null(icall)) {
+            cli::cli_alert_danger("Required dependency '{p}' is missing.")
+            return(FALSE)
+        }
+        
+        if (!interactive()) {
+            return(FALSE)
+        }
+        
+        call <- rlang::call2(icall, p)
+        call_text <- rlang::expr_text(call)
+
+        
+        cli::cli_alert_warning("Required dependency '{p}' is not installed.")
+        cli::cli_text("Do you want to install it? (This will execute: {.code {call_text}})")
+        resp <- .user_input_yn("")
+        
+        if (resp) {
+            cli::cli_alert_info("Installing '{p}'...")
+            rlang::eval_tidy(call)
             
-            cli::cli_alert_warning("Required dependency '{pkg}' is not installed.")
-            cli::cli_text("Do you want to install it? (This will execute: {.code {call_text}})")
-            resp <- readline(">>> [y/n]: ")
-            
-            if (tolower(trimws(resp)) %in% c("y", "yes")) {
-                cli::cli_alert_info("Installing '{pkg}'...")
-                rlang::eval_tidy(install.call)
-                if (requireNamespace(pkg, quietly = TRUE)) {
-                    cli::cli_alert_success("Successfully installed '{pkg}'.")
-                    return(TRUE)
-                } else {
-                    cli::cli_alert_danger("Installation of '{pkg}' failed.")
-                    return(FALSE)
-                }
+            if (requireNamespace(p, quietly = TRUE)) {
+                cli::cli_alert_success("Successfully installed '{p}'.")
+                return(TRUE)
             } else {
-                cli::cli_alert_warning("Skipped installation of '{pkg}'.")
+                cli::cli_alert_danger("Installation of '{p}' failed.")
                 return(FALSE)
             }
         } else {
-            cli::cli_alert_danger("Required dependency '{pkg}' is missing. {.say_no()}")
+            cli::cli_alert_warning("Skipped installation of '{p}'.")
             return(FALSE)
         }
     }
+    
+    results <- mapply(
+        check_single, 
+        p = pkg, 
+        icall = icall_list, 
+        USE.NAMES = TRUE
+    )
+    return(results)
 }
 
 
