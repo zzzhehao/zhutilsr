@@ -1,3 +1,80 @@
+#' Ask user for input by binary options.
+#' @return Logical. 
+#' @export
+.user_input_yn <- function(prompt) {
+    resp <- readline(sprintf(">>> %s [y/n]", prompt))
+    if (tolower(trimws(resp)) %in% c("y", "yes")) {return(TRUE)} else {return(FALSE)}
+}
+
+#' Ask user for input by selecting given options.
+#' @param random Logical. Randomize option order. Default to \code{TRUE}
+#' @param options Character vectors. Options. 
+#' @export
+.user_input_select <- function(prompt, options, random = T, abort_option = T) {
+    if (random) options_r <- sample(options) else options_r <- options
+    if (abort_option) {
+        options_r <- c(options_r, "cancel")
+    }
+    n <- length(options_r)
+
+    option_text <- paste(1:n, options_r, sep = ". ") %>% paste(collapse = "\n")
+
+    resp <- readline(sprintf("%s\n\n%s\n\n>>> ", prompt, option_text)) %>% as.numeric()
+
+    while (!resp %in% 1:n) {
+        resp <- readline(sprintf("Please select a number\n>>> ", prompt, option_text)) %>% as.numeric()
+    }
+
+    if (resp == n) {cli::cli_abort("User has aborted the process.")}
+    resp.idx <- which(options == options_r[resp]) 
+
+    attr(resp.idx, "text") <- options[resp.idx]
+    return(resp.idx)
+}
+
+#' Encode binary results into decimal
+#' 
+#' @param input A numeric vector, a logical vector or a logical matrix of binary bits to be encoded. Columns of the logical matrix represent the objects and rows the bits. 
+#' @return Numeric vector. The converted decimal number.
+#' @export
+.bitencode <- function(input) {
+    if (is.logical(input)) {
+        storage.mode(input) <- "numeric"
+    } else if (!is.numeric(input)) {
+        cli::cli_abort("Input must be numeric or logical.")
+    }
+    if (is.matrix(input)) {
+        input <- apply(input, 2, paste, collapse = "")
+    } else {
+        input <- paste(format(as.numeric(input), scientific = FALSE), collapse = "")
+    }
+
+    return(strtoi(input, 2L))
+}
+
+#' Decode decimal number into binary.
+#' @param decimal A vector of decimals.
+#' @param i Numeric. The position in decoded binary string to extract.
+#' @export
+.bitdecode <- function(decimal, i) {
+  raw_bits <- as.integer(intToBits(decimal))
+  
+  bit_mat <- matrix(raw_bits, nrow = 32)
+  
+  bit_df <- as.data.frame(t(bit_mat[32:1, , drop = FALSE]))
+  full_bin_strings <- do.call(paste0, bit_df)
+  
+  bin_strings <- sub("^0+(?=[0-9])", "", full_bin_strings, perl = TRUE)
+  
+  if (!missing(i)) { # extract i-th digit
+    res <- substr(bin_strings, i, i)
+    res[res == ""] <- NA_character_
+    return(res)
+  } else {
+    return(as.character(bin_strings))
+  }
+}
+
 #' Abort function after time out
 #' @details Source: https://stackoverflow.com/a/53018594
 #' @author landau
