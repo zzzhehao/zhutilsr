@@ -1,6 +1,6 @@
 Package: zhutilsr
 Title: Zhehao's R Utilities
-Version: 0.0.1.9000
+Version: 0.0.1.9001
 Authors@R: 
     person("Zhehao", "Hu", , "hu_zhehao@hotmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0009-0006-2408-1513"))
