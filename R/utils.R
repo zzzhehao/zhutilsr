@@ -294,7 +294,6 @@
 #' Check whether the required dependency is installed
 #' @param pkg Character vector. Package names.
 #' @param install.call A suggested function (or list of functions) for installing the package if missing. Default to \code{NULL}, no installation will be suggested.
-#' @param 
 #' @return A logical vector of the same length as \code{pkg} indicating if packages are installed.
 #' @export
 .dependency_check <- function(

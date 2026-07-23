@@ -7,9 +7,12 @@
 .dependency_check(pkg, install.call = NULL)
 }
 \arguments{
-\item{pkg}{Package name.}
+\item{pkg}{Character vector. Package names.}
 
-\item{install.call}{A suggested call for installing the package if missing. The call must be passed quoted by \code{\link[=quote]{quote()}} or \code{\link[rlang:expr]{rlang::expr()}}.}
+\item{install.call}{A suggested function (or list of functions) for installing the package if missing. Default to \code{NULL}, no installation will be suggested.}
+}
+\value{
+A logical vector of the same length as \code{pkg} indicating if packages are installed.
 }
 \description{
 Check whether the required dependency is installed

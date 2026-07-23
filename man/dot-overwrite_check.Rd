@@ -2,13 +2,33 @@
 % Please edit documentation in R/utils.R
 \name{.overwrite_check}
 \alias{.overwrite_check}
-\title{Check if target folder exists and has files}
+\title{Check overwrite policy}
 \usage{
-.overwrite_check(dir, overwrite, interactive)
+.overwrite_check(
+  ...,
+  dir = NULL,
+  file = NULL,
+  overwrite = FALSE,
+  suffix = FALSE,
+  interactive = FALSE
+)
+}
+\arguments{
+\item{...}{This is a placeholder, it enforces whoever use this function to consciously specify their input correctly as a directory or file.}
+
+\item{dir}{Path to directory (can be a vector)}
+
+\item{file}{Path to file (can be a vector)}
+
+\item{overwrite}{Logical or vector. Whether to overwrite the target.}
+
+\item{suffix}{Logical or vector. Whether to use unique suffix for output. If \code{overwrite} is \code{TRUE}, this value is always treated as \code{FALSE}.}
+
+\item{interactive}{Logical or vector. Whether to start an interactive instance in console to let user decide overwrite option. If \code{overwrite} is \code{TRUE}, this value is always treated as \code{FALSE}.}
 }
 \value{
-Numeric code for overwrite permission. 0: user-defined overwrite or target folder does not yet exist. 1: user-specified overwrite rejection. 2: overwrite rejected and no options given for permission request.
+A vector of binary encoded check results. See details in attributes.
 }
 \description{
-Check if target folder exists and has files
+Check overwrite policy
 }
