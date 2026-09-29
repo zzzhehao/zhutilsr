@@ -9,7 +9,7 @@ License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
-URL: https://github.com/zzzhehao/zhutilsr
+URL: https://github.com/zzzhehao/zhutilsr, https://zzzhehao.github.io/zhutilsr/
 BugReports: https://github.com/zzzhehao/zhutilsr/issues
 Imports:
     base (>= 4.5.0),
