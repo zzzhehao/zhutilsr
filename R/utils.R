@@ -2,7 +2,7 @@
 #' @return Logical. 
 #' @export
 .user_input_yn <- function(prompt) {
-    resp <- readline(sprintf(">>> %s [y/n]", prompt))
+    resp <- readline(sprintf("%s >>> [y/n]", prompt))
     if (tolower(trimws(resp)) %in% c("y", "yes")) {return(TRUE)} else {return(FALSE)}
 }
 
