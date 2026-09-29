@@ -4,7 +4,7 @@
 \alias{db_write}
 \title{Write Table}
 \usage{
-db_write(tbl, table, msg, request.id)
+db_write(tbl, table, msg, request.id, dbconn = .dbconn())
 }
 \arguments{
 \item{tbl}{Table object to write.}
