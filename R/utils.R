@@ -134,32 +134,32 @@
         
         # check exist
         if (is_d) {
-        exist <- dir.exists(p) && length(list.files(p)) > 0
+            exist <- dir.exists(p) && length(list.files(p)) > 0
         } else {
-        exist <- file.exists(p)
+            exist <- file.exists(p)
         }
         
         # right back
         if (ow) {
-        suf <- FALSE
-        int <- FALSE
+            suf <- FALSE
+            int <- FALSE
         }
         
         if (int && !suf && exist) {
-        user_select <- .user_input_select(
-            sprintf("Path `%s` already exists. What to do?", p), 
-            c("overwrite", "use unique suffix")
-        )
-        if (user_select == 1) {
-            cli::cli_alert_info(sprintf("Overwrite granted by user for: %s", p))
-            ow <- TRUE
-            user <- TRUE
-        } else if (user_select == 2) {
-            suf <- TRUE
-            user <- TRUE
-        } else if (user_select == 3) {
-            user <- TRUE
-        }
+            user_select <- .user_input_select(
+                sprintf("Path `%s` already exists. What to do?", p), 
+                c("overwrite", "use unique suffix")
+            )
+            if (user_select == 1) {
+                cli::cli_alert_info(sprintf("Overwrite granted by user for: %s", p))
+                ow <- TRUE
+                user <- TRUE
+            } else if (user_select == 2) {
+                suf <- TRUE
+                user <- TRUE
+            } else if (user_select == 3) {
+                user <- TRUE
+            }
         }
         
         # conflict ===
@@ -230,65 +230,118 @@
     return(codes)
 }
 
+#' Safely write output files with overwrite check
+#' 
+#' Write object to output paths. There are three ways to specify output paths. Provide base file names for all objects and a output directory for all, provide base file names and output directories for all objects, or provide file paths for all objects. The resulted file paths must be in the same length of the object. 
+#' 
+#' @details
+#' Write function could be specified in \code{write_func}. If set to \code{NULL}, some file extension will be detected and written with corresponding functions. 
+#' 
+#' @param obj Object to write.
+#' @param ... Placeholder. Nothing will be evaluated in this slot. It enforces whoever use this function to contiously specifying their output as dir, file, or files. 
+#' @param dir Directory to write the output files
+#' @param file Mantadory if \code{dir} is provided. File name of the output.
+#' @param files File path to write the object. 
+#' @param write_func Function to write object, the first argument must be object to write and the second argument must be the path. Default to \code{NULL}.
+#' @param create_dir Logical. Whether to create directories if the target directories do not exist. If set to \code{TRUE}, the directories will be created recursively until the file can be written. Default to \code{TRUE}.
+#' @param write_func_args Arguments to passed to \code{write_func}. 
+#' @param overwrite_args Arguments passed to [.overwrite_check()]
+#' @param csv_args Arguments passed to [write.table()]
+#' @export
 .safe_write <- function(
     obj,
     ...,
     dir = NULL,
     file = NULL,
     files = NULL,
+    write_func = NULL,
+    create_dir = TRUE,
+    write_func_args = NULL,
     overwrite_args = list(interactive = interactive()),
     csv_args = list(sep = ";", row.names = FALSE)
 ) {
     # input check
     if (!missing(...)) {cli::cli_alert_warning("Nothing should be passed to `...`, ignoring ... = {paste(..., sep = ', ')}")}
 
-    if (is.null(dir) && is.null(file) && !is.null(files)) { # direct file paths
+    if (is.null(dir) && is.null(file) && !is.null(files)) { 
         paths <- files
-    } else if (!is.null(dir) && !is.null(file) && is.null(files)) { # dir + file
-        # dir+file combi check
+    } else if (!is.null(dir) && !is.null(file) && is.null(files)) { 
         if(all(length(dir) != 1, length(dir) != length(file))) {
             cli::cli_abort("`dir` and `file` must have the same length, or `dir` must be a vector of 1. ")
         }
         paths <- file.path(dir, file)
+    } else if (!is.null(dir) && is.null(file)) {
+        cli::cli_abort("`dir` is provided but `file` is not.")
     }
 
-    if (length(obj) != length(paths)) {
-        cli::cli_abort("`obj` and provided path must have the same length. {length(obj)} objects provided with `length(path)` paths.")
+    # FIX: When writing to a single path, ALWAYS wrap `obj` in a list so purrr::pwalk 
+    # treats it as 1 cohesive item rather than iterating over its internal structure.
+    if (length(paths) == 1) {
+        obj <- list(obj)
+    } else if (length(obj) != length(paths)) {
+        cli::cli_abort("`obj` and provided path must have the same length. {length(obj)} objects provided with `{length(paths)}` paths.")
     }
 
     overwrite_args_update <- modifyList(list(file = paths, overwrite = F, suffix = T, interactive = F), overwrite_args)
     overwrite_perm <- do.call(.overwrite_check, overwrite_args_update)
 
     if (any(overwrite_perm < .bitencode(100000))) {
-        cli::cli_alert_warning("Writing permission rejected for `{paste(path[which(overwrite_perm < .bitencode(100000))], sep = ', ')}`. Skipped. Check your overwrite policy.") 
+        cli::cli_alert_warning("Writing permission rejected for `{paste(paths[which(overwrite_perm < .bitencode(100000))], sep = ', ')}`. Skipped. Check your overwrite policy.") 
     } 
 
-    # write profile
     ext <- tools::file_ext(paths)
     filenames <- tools::file_path_sans_ext(paths)
 
-    # update with suffix
     write_granted <- overwrite_perm >= .bitencode(100000)
     use_suffix <- !is.na(attr(overwrite_perm, "suffix"))
     paths[use_suffix] <- paste(paste(filenames[use_suffix], purrr::discard(attr(overwrite_perm, "suffix"), is.na), sep = "-"), ext[use_suffix], sep = ".")
 
-    single_write <- function(obj, path, ext, csv_args = List()) {
+    dir.missing <- !dir.exists(dirname(paths)) 
+    if (any(dir.missing)) {
+        if (!create_dir) {
+            cli::cli_alert_info("Directories {dirname(paths)[dir.missing]} do not exist.")
+            create_dir_des <- .user_input_yn("Create?")
+        } else {
+            create_dir_des <- create_dir
+        }
+
+        if (!create_dir_des) {
+            cli::cli_abort("Directories {dirname(paths)[dir.missing]} do not exist.")
+        } else {
+            purrr::walk2(dir.missing, paths, ~ {
+                if (.x) {
+                    target_dir <- dirname(.y)
+                    if (!dir.exists(target_dir)) {
+                        dir.create(target_dir, recursive = TRUE)
+                        cli::cli_alert_info("Directory {target_dir} created.")
+                    }
+                }
+            })
+        }
+    }
+
+    # Simplify single_write to inherit from enclosed environment
+    single_write <- function(obj, path, ext) {
         if (ext == "csv") {
-            wargs_csv <- modifyList(list(x = obj, file = path, sep = ";", row.names = FALSE), csv_args)
-            do.call(write.table, wargs_csv)
+            wargs_csv <- utils::modifyList(list(x = obj, file = path, sep = ";", row.names = FALSE), csv_args)
+            do.call(utils::write.table, wargs_csv)
         } else if (ext %in% c("rds", "RDS")) {
             saveRDS(obj, path)
+        } else if (!is.null(write_func)) {
+            do.call(write_func, c(list(obj, path), write_func_args))
         } else {
             write(obj, path)
         }
     }
 
-    can_parallel <- all(.dependency_check(c("mirai", "carrier"), install.packages))
-    if (can_parallel) {
-        purrr::pwalk(list(obj[write_granted], paths[write_granted], ext[write_granted]), purrr::in_parallel(\(o, p, e) single_write(o, p, e, csv_args), single_write = single_write, csv_args = csv_args))
-    } else {
-        purrr::pwalk(list(obj[write_granted], paths[write_granted], ext[write_granted]), single_write)
-    }
+    purrr::pwalk(
+        list(
+            obj[write_granted], 
+            paths[write_granted], 
+            ext[write_granted]
+        ), 
+        single_write
+    )
 }
 
 #' Check whether the required dependency is installed
