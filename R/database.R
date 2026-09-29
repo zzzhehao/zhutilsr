@@ -214,10 +214,8 @@ db_exe_request <- function(request.filename) {
 #' @param msg Change message.
 #' @param request.id Request ID associated to this change.
 #' @export
-db_write <- function(tbl, table, msg, request.id) {
-    dbconn <- .dbconn()
-
-    db_sign(table, "Manual", msg, request.id)
+db_write <- function(tbl, table, msg, request.id, dbconn = .dbconn()) {
+    # db_sign(table, "Manual", msg, request.id)
     DBI::dbWriteTable(dbconn, table, tbl, overwrite = T)
     DBI::dbDisconnect(dbconn)
 }
@@ -343,4 +341,5 @@ db_pull <- function(
         # }
     }
     return(tbl)
+    DBI::dbDisconnect()
 }
