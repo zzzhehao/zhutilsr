@@ -333,3 +333,27 @@ remove_empty_folders <- function(path) {
     
     message("Done. Deleted ", deleted_count, " empty folders.")
 }
+
+#' Check if paths exists and are directories.
+#' @param path Character vector. Path(s) to be tested.
+#' @param error Logical. Whether throw an error if any path didn't pass the text. Default to \code{FALSE}.
+#' @return A logical vector in same length of \code{path}.
+.is_dir <- function(path, error = F) {
+    res <- dir.exists(path) & file.exists(path)
+    if (error & any(!res)) {
+        cli::cli_abort("{path[!res]} are not directories, or do not exist.")
+    }
+    return(res)
+}
+
+#' Check if paths exists and are files. 
+#' @param path Character vector. Path(s) to be tested.
+#' @param error Logical. Whether throw an error if any path didn't pass the text. Default to \code{FALSE}.
+#' @return A logical vector in same length of \code{path}.
+.is_file <- function(path, error = F) {
+    res <- !dir.exists(path) & file.exists(path)
+    if (error & any(!res)) {
+        cli::cli_abort("{path[!res]} are not files, or do not exist.")
+    }
+    return(res)
+}
