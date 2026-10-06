@@ -338,6 +338,7 @@ remove_empty_folders <- function(path) {
 #' @param path Character vector. Path(s) to be tested.
 #' @param error Logical. Whether throw an error if any path didn't pass the text. Default to \code{FALSE}.
 #' @return A logical vector in same length of \code{path}.
+#' @export
 .is_dir <- function(path, error = F) {
     res <- dir.exists(path) & file.exists(path)
     if (error & any(!res)) {
@@ -350,6 +351,7 @@ remove_empty_folders <- function(path) {
 #' @param path Character vector. Path(s) to be tested.
 #' @param error Logical. Whether throw an error if any path didn't pass the text. Default to \code{FALSE}.
 #' @return A logical vector in same length of \code{path}.
+#' @export
 .is_file <- function(path, error = F) {
     res <- !dir.exists(path) & file.exists(path)
     if (error & any(!res)) {

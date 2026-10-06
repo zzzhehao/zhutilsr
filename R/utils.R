@@ -235,3 +235,21 @@ find_best_match <- function(pattern, strings, index = F, silent = F) {
     
     return(lst)
 }
+
+#' Turn Characters Vectors to be Safe
+#' 
+#' @param c Character vector. Input to be convert into safe characters.
+#' @param replacement Character vector of length 1. Element to replace unsafe characters
+#' @param allow Regex expression. To be added as `[^allow]`. Matching additional characters to be retained. Default to none, which only allows safest characters (alphabet, numbers, underscore).
+#' 
+#' @return Character vector of length `c`. Safe version of the input. Attribute `lut` provides a look-up table of the conversion, which can be used to map the original value to the safe values. 
+#' @export
+.safe_name <- function(c, replacement = "_", allow = "") {
+    regex <- sprintf("[^a-zA-Z0-9_%s]", allow)
+    csafe <- gsub(allow, replacement, c)
+
+    if (any(duplicated(csafe))) cli::cli_alert_warning("{csafe[duplicated(csafe)]} is duplicated in safe version.")
+    lut <- data.frame(input = c, safe = csafe)
+    attr(csafe, "lut") <- lut
+    return(csafe)
+}
