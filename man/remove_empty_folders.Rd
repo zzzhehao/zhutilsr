@@ -4,7 +4,10 @@
 \alias{remove_empty_folders}
 \title{Remove Empty Folders}
 \usage{
-remove_empty_folders(root_path)
+remove_empty_folders(path)
+}
+\arguments{
+\item{path}{Path to directory.}
 }
 \description{
 Removes empty folders recursively downwards.
