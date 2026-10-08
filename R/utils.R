@@ -246,7 +246,7 @@ find_best_match <- function(pattern, strings, index = F, silent = F) {
 #' @export
 .safe_name <- function(c, replacement = "_", allow = "") {
     regex <- sprintf("[^a-zA-Z0-9_%s]", allow)
-    csafe <- gsub(allow, replacement, c)
+    csafe <- gsub(regex, replacement, c)
 
     if (any(duplicated(csafe))) cli::cli_alert_warning("{csafe[duplicated(csafe)]} is duplicated in safe version.")
     lut <- data.frame(input = c, safe = csafe)
