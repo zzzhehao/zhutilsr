@@ -2,15 +2,40 @@
 % Please edit documentation in R/utils_taxonomy.R
 \name{format_organism_name}
 \alias{format_organism_name}
-\title{format organism label}
+\title{Format Orgnism Name like a Descent Taxonomist}
 \usage{
 format_organism_name(
   label,
+  format = NULL,
   tag_open = "<i>",
   tag_close = "</i>",
-  plotmath.safe = F
+  plotmath.safe = FALSE
 )
 }
+\arguments{
+\item{label}{A character vector of organism/taxa names to format.}
+
+\item{format}{An optional character string specifying a preset format. Accepts
+unambiguous partial matches of \code{"html"}, \code{"markdown"}, or \code{"plotmath"}.
+If provided, this overrides \code{tag_open}, \code{tag_close}, and \code{plotmath.safe}.}
+
+\item{tag_open}{A character string for the opening format tag (default: \code{"<i>"}).
+Ignored if \code{format} is specified.}
+
+\item{tag_close}{A character string for the closing format tag (default: \code{"</i>"}).
+Ignored if \code{format} is specified.}
+
+\item{plotmath.safe}{Logical. If \code{TRUE}, formats the output as a valid R expression
+string for \code{ggplot2} parsing (e.g., replacing spaces with \code{~} and wrapping
+non-italicized text in single quotes). Ignored if \code{format} is specified.}
+}
+\value{
+A character vector of formatted organism names, the same length as \code{label}.
+}
 \description{
-format organism label
+Applies appropriate formatting (italics) to organism names. The genus name is always italicized. Specific epithets are
+formatted unless they are "sp.". Taxonomic qualifiers like "cf." and "aff." are
+left unformatted, while the subsequent species epithets (splitted by whitespace) are formatted.
+
+Can output standard HTML/Markdown tags or \code{plotmath}-safe strings for \code{ggplot2}, or using any defined opening and closing tags.
 }

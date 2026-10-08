@@ -1,5 +1,6 @@
 # Created by Zhehao Hu
 zhutilsr.md
+demo/*
 
 # Positron
 **.code-workspace
@@ -140,3 +141,4 @@ rsconnect/
 /*_files/
 
 # End of https://www.toptal.com/developers/gitignore/api/r,macos
+docs

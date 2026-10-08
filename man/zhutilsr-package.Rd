@@ -12,6 +12,7 @@ Zhehao's Utilities
 Useful links:
 \itemize{
   \item \url{https://github.com/zzzhehao/zhutilsr}
+  \item \url{https://zzzhehao.github.io/zhutilsr/}
   \item Report bugs at \url{https://github.com/zzzhehao/zhutilsr/issues}
 }
 

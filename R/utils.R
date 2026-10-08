@@ -2,7 +2,7 @@
 #' @return Logical. 
 #' @export
 .user_input_yn <- function(prompt) {
-    resp <- readline(sprintf(">>> %s [y/n]", prompt))
+    resp <- readline(sprintf("%s >>> [y/n]", prompt))
     if (tolower(trimws(resp)) %in% c("y", "yes")) {return(TRUE)} else {return(FALSE)}
 }
 
@@ -85,210 +85,6 @@
     setTimeLimit(cpu = cpu, elapsed = elapsed, transient = TRUE)
     on.exit(setTimeLimit(cpu = Inf, elapsed = Inf, transient = FALSE))
     eval(expr, envir = envir)
-}
-
-#' Check overwrite policy
-#' 
-#' @param ... This is a placeholder, it enforces whoever use this function to consciously specify their input correctly as a directory or file. 
-#' @param dir Path to directory (can be a vector)
-#' @param file Path to file (can be a vector)
-#' @param overwrite Logical or vector. Whether to overwrite the target. 
-#' @param suffix Logical or vector. Whether to use unique suffix for output. If \code{overwrite} is \code{TRUE}, this value is always treated as \code{FALSE}.
-#' @param interactive Logical or vector. Whether to start an interactive instance in console to let user decide overwrite option. If \code{overwrite} is \code{TRUE}, this value is always treated as \code{FALSE}.
-#' @return A vector of binary encoded check results. See details in attributes. 
-#' @export
-.overwrite_check <- function(
-    ...,
-    dir = NULL,
-    file = NULL,
-    overwrite = FALSE,
-    suffix = FALSE,
-    interactive = FALSE
-) {
-    # input check
-    if (!missing(...)) {
-        cli::cli_alert_warning("Nothing should be passed to `...`, ignoring ... = {paste(..., sep = ', ')}")
-    }
-    
-    if (!is.null(dir) && !is.null(file)) {
-        cli::cli_abort("One check at a time. `dir` or `file`, not both.")
-    }
-    
-    if (is.null(dir) && is.null(file)) {
-        cli::cli_abort("I have nothing to check, so { .say_no() }")
-    }
-    
-    # Determine paths and types
-    is_dir <- !is.null(dir)
-    paths <- if (is_dir) dir else file
-    n_paths <- length(paths)
-    
-    # Recycle arguments to match the length of paths
-    overwrite <- rep_len(overwrite, n_paths)
-    suffix <- rep_len(suffix, n_paths)
-    interactive <- rep_len(interactive, n_paths)
-    
-    # Core logic function for a single path
-    check_single <- function(p, is_d, ow, suf, int) {
-        user <- FALSE
-        
-        # check exist
-        if (is_d) {
-        exist <- dir.exists(p) && length(list.files(p)) > 0
-        } else {
-        exist <- file.exists(p)
-        }
-        
-        # right back
-        if (ow) {
-        suf <- FALSE
-        int <- FALSE
-        }
-        
-        if (int && !suf && exist) {
-        user_select <- .user_input_select(
-            sprintf("Path `%s` already exists. What to do?", p), 
-            c("overwrite", "use unique suffix")
-        )
-        if (user_select == 1) {
-            cli::cli_alert_info(sprintf("Overwrite granted by user for: %s", p))
-            ow <- TRUE
-            user <- TRUE
-        } else if (user_select == 2) {
-            suf <- TRUE
-            user <- TRUE
-        } else if (user_select == 3) {
-            user <- TRUE
-        }
-        }
-        
-        # conflict ===
-        # solve with suffix
-        suffix_next <- NA_real_
-        
-        if (exist && suf) {
-            if (is_d) {
-                dirs <- list.dirs(dirname(p), recursive = FALSE)
-                dirs_suffix <- grep(sprintf("%s-[0-9]+$", p), dirs, value = TRUE)
-                
-                if (length(dirs_suffix) == 0) {
-                suffix_next <- 1
-                } else {
-                suffix_next <- max(as.numeric(stringr::str_extract(dirs_suffix, sprintf("(?<=%s-)[0-9]+$", p)))) + 1
-                }
-            } else {
-                files <- list.files(dirname(p), full.names = TRUE)
-                ext <- tools::file_ext(p)
-                filenames <- tools::file_path_sans_ext(p)
-                files_suffix <- grep(sprintf("%s-[0-9]+\\.%s", basename(filenames), ext), files, value = TRUE) 
-                
-                if (length(files_suffix) == 0) {
-                    suffix_next <- 1
-                } else {
-                    suffix_next <- max(as.numeric(stringr::str_extract(files_suffix, sprintf("(?<=%s)-[0-9]+(?=\\.%s)", basename(p), ext)))) + 1
-                }
-            }
-        }
-        
-        # Return a list for this specific element to be aggregated later
-        code <- .bitencode(c(ow || suf, ow, user, suf, exist, is_d))
-        list(
-            code = code,
-            bitcode = stringr::str_pad(.bitdecode(code), 5, "left", "0"),
-            suffix = suffix_next
-        )
-    }
-    
-    # Apply across all inputs
-    results <- mapply(
-        check_single, 
-        p = paths, 
-        is_d = is_dir, 
-        ow = overwrite, 
-        suf = suffix, 
-        int = interactive, 
-        SIMPLIFY = FALSE
-    )
-    
-    # Aggregate results into a vectorized return object
-    codes <- sapply(results, `[[`, "code")
-    
-    attr(codes, "bitcode") <- sapply(results, `[[`, "bitcode")
-    attr(codes, "suffix") <- sapply(results, `[[`, "suffix")
-    attr(codes, "bitcode_info") <- data.frame(
-        bit = 1:6,
-        meaning = c(
-        "write permission",
-        "overwrite permission",
-        "user decision",
-        "unique suffix",
-        "file already existed",
-        "path is folder"
-        )
-    )
-    
-    return(codes)
-}
-
-.safe_write <- function(
-    obj,
-    ...,
-    dir = NULL,
-    file = NULL,
-    files = NULL,
-    overwrite_args = list(interactive = interactive()),
-    csv_args = list(sep = ";", row.names = FALSE)
-) {
-    # input check
-    if (!missing(...)) {cli::cli_alert_warning("Nothing should be passed to `...`, ignoring ... = {paste(..., sep = ', ')}")}
-
-    if (is.null(dir) && is.null(file) && !is.null(files)) { # direct file paths
-        paths <- files
-    } else if (!is.null(dir) && !is.null(file) && is.null(files)) { # dir + file
-        # dir+file combi check
-        if(all(length(dir) != 1, length(dir) != length(file))) {
-            cli::cli_abort("`dir` and `file` must have the same length, or `dir` must be a vector of 1. ")
-        }
-        paths <- file.path(dir, file)
-    }
-
-    if (length(obj) != length(paths)) {
-        cli::cli_abort("`obj` and provided path must have the same length. {length(obj)} objects provided with `length(path)` paths.")
-    }
-
-    overwrite_args_update <- modifyList(list(file = paths, overwrite = F, suffix = T, interactive = F), overwrite_args)
-    overwrite_perm <- do.call(.overwrite_check, overwrite_args_update)
-
-    if (any(overwrite_perm < .bitencode(100000))) {
-        cli::cli_alert_warning("Writing permission rejected for `{paste(path[which(overwrite_perm < .bitencode(100000))], sep = ', ')}`. Skipped. Check your overwrite policy.") 
-    } 
-
-    # write profile
-    ext <- tools::file_ext(paths)
-    filenames <- tools::file_path_sans_ext(paths)
-
-    # update with suffix
-    write_granted <- overwrite_perm >= .bitencode(100000)
-    use_suffix <- !is.na(attr(overwrite_perm, "suffix"))
-    paths[use_suffix] <- paste(paste(filenames[use_suffix], purrr::discard(attr(overwrite_perm, "suffix"), is.na), sep = "-"), ext[use_suffix], sep = ".")
-
-    single_write <- function(obj, path, ext, csv_args = List()) {
-        if (ext == "csv") {
-            wargs_csv <- modifyList(list(x = obj, file = path, sep = ";", row.names = FALSE), csv_args)
-            do.call(write.table, wargs_csv)
-        } else if (ext %in% c("rds", "RDS")) {
-            saveRDS(obj, path)
-        } else {
-            write(obj, path)
-        }
-    }
-
-    can_parallel <- all(.dependency_check(c("mirai", "carrier"), install.packages))
-    if (can_parallel) {
-        purrr::pwalk(list(obj[write_granted], paths[write_granted], ext[write_granted]), purrr::in_parallel(\(o, p, e) single_write(o, p, e, csv_args), single_write = single_write, csv_args = csv_args))
-    } else {
-        purrr::pwalk(list(obj[write_granted], paths[write_granted], ext[write_granted]), single_write)
-    }
 }
 
 #' Check whether the required dependency is installed
@@ -418,4 +214,42 @@ find_best_match <- function(pattern, strings, index = F, silent = F) {
     } else {
         return(pattern.match)
     }
+}
+
+#' Safely remove flat or nested properties from a list
+#' @param lst The frontmatter list 
+#' @param excludes A character vector of properties to remove (e.g., c("name", "parent$child"))
+.clean_yaml_list <- function(lst, excludes = NULL) {
+    if (is.null(excludes) || length(excludes) == 0) return(lst)
+    
+    # split nested properties into vectors
+    paths <- strsplit(excludes, "$", fixed = TRUE)
+    
+    for (path in paths) {
+        tryCatch({
+            lst[[path]] <- NULL
+        }, error = function(e) {
+            warning(paste("Could not remove property:", paste(path, collapse = "$")))
+        })
+    }
+    
+    return(lst)
+}
+
+#' Turn Characters Vectors to be Safe
+#' 
+#' @param c Character vector. Input to be convert into safe characters.
+#' @param replacement Character vector of length 1. Element to replace unsafe characters
+#' @param allow Regex expression. To be added as `[^allow]`. Matching additional characters to be retained. Default to none, which only allows safest characters (alphabet, numbers, underscore).
+#' 
+#' @return Character vector of length `c`. Safe version of the input. Attribute `lut` provides a look-up table of the conversion, which can be used to map the original value to the safe values. 
+#' @export
+.safe_name <- function(c, replacement = "_", allow = "") {
+    regex <- sprintf("[^a-zA-Z0-9_%s]", allow)
+    csafe <- gsub(regex, replacement, c)
+
+    if (any(duplicated(csafe))) cli::cli_alert_warning("{csafe[duplicated(csafe)]} is duplicated in safe version.")
+    lut <- data.frame(input = c, safe = csafe)
+    attr(csafe, "lut") <- lut
+    return(csafe)
 }
